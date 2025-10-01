@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>時間選択ダイアログ - モック</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: rgba(0, 0, 0, 0.5);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .dialog {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        width: 320px;
+        padding: 0;
+        font-size: 14px;
+      }
+
+      .dialog-header {
+        background-color: #f8f9fa;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e9ecef;
+        border-radius: 8px 8px 0 0;
+      }
+
+      .dialog-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .dialog-content {
+        padding: 20px;
+      }
+
+      .time-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .time-label {
+        width: 60px;
+        font-weight: 500;
+        color: #555;
+      }
+
+      .time-selectors {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .drum-picker {
+        position: relative;
+        width: 60px;
+        height: 120px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: white;
+        overflow: hidden;
+        cursor: grab;
+        touch-action: pan-y; /* タッチスクロールを縦方向のみに制限 */
+      }
+
+      .drum-picker:active {
+        cursor: grabbing;
+      }
+
+      .drum-container {
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .drum-list {
+        position: absolute;
+        width: 100%;
+        transition: transform 0.3s ease;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+
+      .drum-item {
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+      }
+
+      .drum-item:hover {
+        background-color: #f0f8ff;
+      }
+
+      .drum-item.selected {
+        background-color: #007bff;
+        color: white;
+        font-weight: bold;
+      }
+
+      .drum-highlight {
+        position: absolute;
+        top: 40px;
+        left: 0;
+        right: 0;
+        height: 40px;
+        border: 2px solid #007bff;
+        border-radius: 4px;
+        pointer-events: none;
+        background-color: rgba(0, 123, 255, 0.1);
+        z-index: 1;
+      }
+
+      .time-separator {
+        font-weight: bold;
+        color: #666;
+        margin: 0 4px;
+      }
+
+      .dialog-footer {
+        padding: 16px 20px;
+        border-top: 1px solid #e9ecef;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        background-color: #f8f9fa;
+        border-radius: 0 0 8px 8px;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-cancel {
+        background: white;
+        color: #666;
+      }
+
+      .btn-cancel:hover {
+        background: #f8f9fa;
+      }
+
+      .btn-ok {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+      }
+
+      .btn-ok:hover {
+        background: #0056b3;
+        border-color: #0056b3;
+      }
+
+      .error-message {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+        border-radius: 4px;
+        padding: 12px;
+        margin: 16px 20px 0;
+        font-size: 14px;
+        display: none;
+      }
+
+      .error-message.show {
+        display: block;
+      }
+
+      .error-icon {
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Hidden fields for storing selected times -->
+    <input type="hidden" id="start-time" name="start-time" value="" />
+    <input type="hidden" id="end-time" name="end-time" value="" />
+
+    <div class="dialog">
+      <div class="dialog-header">
+        <h3 class="dialog-title">時間選択</h3>
+      </div>
+
+      <div class="dialog-content">
+        <div class="time-row">
+          <span class="time-label">開始時間:</span>
+          <div class="time-selectors">
+            <div class="drum-picker" id="start-hour-picker">
+              <div class="drum-container">
+                <div class="drum-highlight"></div>
+                <ul class="drum-list" id="start-hour-list"></ul>
+              </div>
+            </div>
+            <span class="time-separator">:</span>
+            <div class="drum-picker" id="start-minute-picker">
+              <div class="drum-container">
+                <div class="drum-highlight"></div>
+                <ul class="drum-list" id="start-minute-list"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="time-row">
+          <span class="time-label">終了時間:</span>
+          <div class="time-selectors">
+            <div class="drum-picker" id="end-hour-picker">
+              <div class="drum-container">
+                <div class="drum-highlight"></div>
+                <ul class="drum-list" id="end-hour-list"></ul>
+              </div>
+            </div>
+            <span class="time-separator">:</span>
+            <div class="drum-picker" id="end-minute-picker">
+              <div class="drum-container">
+                <div class="drum-highlight"></div>
+                <ul class="drum-list" id="end-minute-list"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- エラーメッセージ表示エリア -->
+      <div id="error-message" class="error-message">
+        <span class="error-icon">⚠️</span>
+        <span id="error-text"></span>
+      </div>
+
+      <div class="dialog-footer">
+        <button class="btn btn-cancel" onclick="closeDialog()">
+          キャンセル
+        </button>
+        <button class="btn btn-ok" onclick="confirmSelection()">OK</button>
+      </div>
+    </div>
+
+    <!-- デモ用: hiddenフィールドの値を表示 -->
+    <div
+      style="
+        margin-top: 20px;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        max-width: 320px;
+      "
+    >
+      <h4>Hidden Fields (デモ用表示)</h4>
+      <p>開始時間: <span id="display-start-time">未設定</span></p>
+      <p>終了時間: <span id="display-end-time">未設定</span></p>
+      <button
+        onclick="setTestValues()"
+        style="margin-right: 10px; padding: 5px 10px"
+      >
+        テスト値設定
+      </button>
+      <button onclick="clearValues()" style="padding: 5px 10px">クリア</button>
+      <button
+        onclick="setErrorTestValues()"
+        style="
+          margin-left: 10px;
+          padding: 5px 10px;
+          background: #dc3545;
+          color: white;
+          border: none;
+          border-radius: 4px;
+        "
+      >
+        エラーテスト
+      </button>
+    </div>
+
+    <script>
+      class DrumPicker {
+        constructor(containerId, listId, values, defaultValue = 0) {
+          this.container = document.getElementById(containerId);
+          this.list = document.getElementById(listId);
+          this.values = values;
+          this.selectedIndex = defaultValue;
+          this.itemHeight = 40;
+
+          this.init();
+        }
+
+        init() {
+          // リストアイテムを生成
+          this.values.forEach((value, index) => {
+            const li = document.createElement("li");
+            li.className = "drum-item";
+            li.textContent = value;
+            li.dataset.index = index;
+            this.list.appendChild(li);
+          });
+
+          // 上下にダミーアイテムを追加（スムーズなスクロールのため）
+          for (let i = 0; i < 2; i++) {
+            const topDummy = document.createElement("li");
+            topDummy.className = "drum-item";
+            topDummy.style.opacity = "0";
+            this.list.insertBefore(topDummy, this.list.firstChild);
+
+            const bottomDummy = document.createElement("li");
+            bottomDummy.className = "drum-item";
+            bottomDummy.style.opacity = "0";
+            this.list.appendChild(bottomDummy);
+          }
+
+          // イベントリスナー
+          this.setupEvents();
+
+          // 初期位置設定
+          this.updatePosition();
+          this.setInitialSelection();
+        }
+
+        setupEvents() {
+          let startY = 0;
+          let currentY = 0;
+          let isDragging = false;
+
+          // マウスイベント
+          this.container.addEventListener("mousedown", (e) => {
+            isDragging = true;
+            startY = e.clientY;
+            this.container.style.cursor = "grabbing";
+            e.preventDefault(); // テキスト選択を防ぐ
+          });
+
+          document.addEventListener("mousemove", (e) => {
+            if (!isDragging) return;
+
+            currentY = e.clientY - startY;
+            const newIndex =
+              this.selectedIndex - Math.round(currentY / this.itemHeight);
+            this.setSelectedIndex(
+              Math.max(0, Math.min(this.values.length - 1, newIndex))
+            );
+          });
+
+          document.addEventListener("mouseup", () => {
+            if (isDragging) {
+              isDragging = false;
+              this.container.style.cursor = "grab";
+              this.snapToNearest();
+            }
+          });
+
+          // タッチイベント（モバイル対応）
+          this.container.addEventListener("touchstart", (e) => {
+            isDragging = true;
+            startY = e.touches[0].clientY;
+            e.preventDefault();
+          });
+
+          this.container.addEventListener("touchmove", (e) => {
+            if (!isDragging) return;
+
+            currentY = e.touches[0].clientY - startY;
+            const newIndex =
+              this.selectedIndex - Math.round(currentY / this.itemHeight);
+            this.setSelectedIndex(
+              Math.max(0, Math.min(this.values.length - 1, newIndex))
+            );
+            e.preventDefault();
+          });
+
+          this.container.addEventListener("touchend", () => {
+            if (isDragging) {
+              isDragging = false;
+              this.snapToNearest();
+            }
+          });
+
+          // ホイールイベント
+          this.container.addEventListener("wheel", (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 1 : -1;
+            const newIndex = Math.max(
+              0,
+              Math.min(this.values.length - 1, this.selectedIndex + delta)
+            );
+            this.setSelectedIndex(newIndex);
+          });
+
+          // クリックイベント
+          this.list.addEventListener("click", (e) => {
+            if (
+              e.target.classList.contains("drum-item") &&
+              e.target.dataset.index !== undefined
+            ) {
+              const index = parseInt(e.target.dataset.index);
+              this.setSelectedIndex(index);
+            }
+          });
+        }
+
+        setSelectedIndex(index) {
+          this.selectedIndex = index;
+          this.updatePosition();
+          this.updateSelection();
+
+          // リアルタイムバリデーション
+          if (typeof performRealtimeValidation === "function") {
+            performRealtimeValidation();
+          }
+        }
+
+        updatePosition() {
+          // ダミーアイテム2つを考慮した位置計算
+          // 選択されたアイテムが中央（ハイライト枠の位置）に来るように調整
+          // ハイライト枠は上から40px（インデックス1）の位置にある
+          // ダミーアイテム2つ + 選択されたアイテムのインデックス = 中央に表示したい位置
+          const dummyItems = 2;
+          const centerPosition = 1; // ハイライト枠の位置（0ベース）
+          const targetPosition = dummyItems + this.selectedIndex; // 実際のアイテムの位置
+          const offset = -(targetPosition - centerPosition) * this.itemHeight;
+          this.list.style.transform = `translateY(${offset}px)`;
+        }
+
+        updateSelection() {
+          const items = this.list.querySelectorAll(".drum-item");
+          items.forEach((item, index) => {
+            // 中央の位置（ハイライト枠の位置）にあるアイテムを選択状態にする
+            // ハイライト枠は上から40px（インデックス1）の位置にある
+            const centerPosition = 1;
+            const isInCenterPosition = index === centerPosition;
+            item.classList.toggle("selected", isInCenterPosition);
+          });
+        }
+
+        // 初期選択状態を設定
+        setInitialSelection() {
+          this.updateSelection();
+        }
+
+        snapToNearest() {
+          this.updatePosition();
+        }
+
+        getValue() {
+          return this.values[this.selectedIndex];
+        }
+      }
+
+      // 時間と分の値を生成
+      const hours = Array.from({ length: 24 }, (_, i) =>
+        String(i).padStart(2, "0")
+      );
+      const minutes = ["00", "10", "20", "30", "40", "50"];
+
+      // hiddenフィールドから既存の値を取得
+      function getExistingTimes() {
+        const startTimeValue = document.getElementById("start-time").value;
+        const endTimeValue = document.getElementById("end-time").value;
+
+        if (startTimeValue && endTimeValue) {
+          const [startHour, startMinute] = startTimeValue.split(":");
+          const [endHour, endMinute] = endTimeValue.split(":");
+
+          // 分の値が配列に存在しない場合は最も近い値を探す
+          let startMinuteIndex = minutes.indexOf(startMinute);
+          if (startMinuteIndex === -1) {
+            const minuteNum = parseInt(startMinute);
+            startMinuteIndex = Math.floor(minuteNum / 10);
+            if (startMinuteIndex >= minutes.length)
+              startMinuteIndex = minutes.length - 1;
+          }
+
+          let endMinuteIndex = minutes.indexOf(endMinute);
+          if (endMinuteIndex === -1) {
+            const minuteNum = parseInt(endMinute);
+            endMinuteIndex = Math.floor(minuteNum / 10);
+            if (endMinuteIndex >= minutes.length)
+              endMinuteIndex = minutes.length - 1;
+          }
+
+          return {
+            startHour: parseInt(startHour),
+            startMinuteIndex: startMinuteIndex,
+            endHour: parseInt(endHour),
+            endMinuteIndex: endMinuteIndex,
+          };
+        }
+
+        return null;
+      }
+
+      // 現在時間から開始時間と終了時間のデフォルト値を計算
+      function calculateDefaultTimes() {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+
+        console.log("Current time:", `${currentHour}:${currentMinute}`);
+
+        // 現在時刻の10分切り上げ
+        let startMinuteIndex = Math.ceil(currentMinute / 10);
+        let startHour = currentHour;
+
+        // 60分を超えた場合は次の時間に繰り上げ
+        if (startMinuteIndex >= 6) {
+          startMinuteIndex = 0;
+          startHour = (startHour + 1) % 24;
+        }
+
+        // 終了時間は開始時間+1時間
+        let endHour = (startHour + 1) % 24;
+        let endMinuteIndex = startMinuteIndex;
+
+        console.log("Calculated default:", {
+          startHour,
+          startMinute: minutes[startMinuteIndex],
+          endHour,
+          endMinute: minutes[endMinuteIndex],
+        });
+
+        return {
+          startHour,
+          startMinuteIndex,
+          endHour,
+          endMinuteIndex,
+        };
+      }
+
+      // ドラムピッカーを初期化
+      let startHourPicker, startMinutePicker, endHourPicker, endMinutePicker;
+
+      document.addEventListener("DOMContentLoaded", () => {
+        // 既存の値があるかチェック、なければデフォルト値を使用
+        const existingTimes = getExistingTimes();
+        const defaultTimes = existingTimes || calculateDefaultTimes();
+
+        console.log("Default times:", defaultTimes);
+
+        startHourPicker = new DrumPicker(
+          "start-hour-picker",
+          "start-hour-list",
+          hours,
+          defaultTimes.startHour
+        );
+        startMinutePicker = new DrumPicker(
+          "start-minute-picker",
+          "start-minute-list",
+          minutes,
+          defaultTimes.startMinuteIndex
+        );
+        endHourPicker = new DrumPicker(
+          "end-hour-picker",
+          "end-hour-list",
+          hours,
+          defaultTimes.endHour
+        );
+        endMinutePicker = new DrumPicker(
+          "end-minute-picker",
+          "end-minute-list",
+          minutes,
+          defaultTimes.endMinuteIndex
+        );
+      });
+
+      function closeDialog() {
+        alert("キャンセルされました");
+      }
+
+      // 時間の妥当性をチェック
+      function validateTimeRange() {
+        const startHour = parseInt(startHourPicker.getValue());
+        const startMinute = parseInt(startMinutePicker.getValue());
+        const endHour = parseInt(endHourPicker.getValue());
+        const endMinute = parseInt(endMinutePicker.getValue());
+
+        // 分を含めた総分数で比較
+        const startTotalMinutes = startHour * 60 + startMinute;
+        const endTotalMinutes = endHour * 60 + endMinute;
+
+        if (startTotalMinutes >= endTotalMinutes) {
+          return {
+            isValid: false,
+            message: "開始時間は終了時間より前に設定してください。",
+          };
+        }
+
+        // 最小時間間隔チェック（10分以上）
+        const timeDifference = endTotalMinutes - startTotalMinutes;
+        if (timeDifference < 10) {
+          return {
+            isValid: false,
+            message: "開始時間と終了時間は10分以上の間隔を設けてください。",
+          };
+        }
+
+        return { isValid: true };
+      }
+
+      // エラーメッセージを表示
+      function showError(message) {
+        const errorElement = document.getElementById("error-message");
+        const errorText = document.getElementById("error-text");
+
+        errorText.textContent = message;
+        errorElement.classList.add("show");
+
+        // 3秒後に自動で非表示（多重起動防止）
+        if (window.__errorHideTimer) {
+          clearTimeout(window.__errorHideTimer);
+        }
+        window.__errorHideTimer = setTimeout(() => {
+          hideError();
+          window.__errorHideTimer = null;
+        }, 3000);
+      }
+
+      // エラーメッセージを非表示
+      function hideError() {
+        const errorElement = document.getElementById("error-message");
+        errorElement.classList.remove("show");
+      }
+
+      function confirmSelection() {
+        // エラーメッセージを一旦非表示
+        hideError();
+
+        console.log("Selected indices:", {
+          startHour: startHourPicker.selectedIndex,
+          startMinute: startMinutePicker.selectedIndex,
+          endHour: endHourPicker.selectedIndex,
+          endMinute: endMinutePicker.selectedIndex,
+        });
+
+        const startTime = `${startHourPicker.getValue()}:${startMinutePicker.getValue()}`;
+        const endTime = `${endHourPicker.getValue()}:${endMinutePicker.getValue()}`;
+
+        console.log("Selected values:", {
+          startTime,
+          endTime,
+        });
+
+        // 時間の妥当性チェック
+        const validation = validateTimeRange();
+        if (!validation.isValid) {
+          showError(validation.message);
+          return; // エラーがある場合は処理を中断
+        }
+
+        // hiddenフィールドに値を設定
+        document.getElementById("start-time").value = startTime;
+        document.getElementById("end-time").value = endTime;
+
+        alert(
+          `選択された時間:\n開始時間: ${startTime}\n終了時間: ${endTime}\n\nHiddenフィールドに値が設定されました。`
+        );
+
+        // 実際の使用時はここでフォーム送信やコールバック関数を呼び出し
+        console.log("Hidden fields updated:", {
+          startTime: document.getElementById("start-time").value,
+          endTime: document.getElementById("end-time").value,
+        });
+
+        // デモ用表示を更新
+        updateDisplayValues();
+      }
+
+      // デモ用: hiddenフィールドの値を表示更新
+      function updateDisplayValues() {
+        document.getElementById("display-start-time").textContent =
+          document.getElementById("start-time").value || "未設定";
+        document.getElementById("display-end-time").textContent =
+          document.getElementById("end-time").value || "未設定";
+      }
+
+      // デモ用: テスト値を設定
+      function setTestValues() {
+        document.getElementById("start-time").value = "14:30";
+        document.getElementById("end-time").value = "16:20";
+        updateDisplayValues();
+
+        // ページをリロードしてデフォルト値として反映
+        location.reload();
+      }
+
+      // デモ用: 値をクリア
+      function clearValues() {
+        document.getElementById("start-time").value = "";
+        document.getElementById("end-time").value = "";
+        updateDisplayValues();
+
+        // ページをリロードして現在時間ベースのデフォルト値に戻す
+        location.reload();
+      }
+
+      // キーボードサポートを追加
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeDialog();
+        } else if (e.key === "Enter") {
+          confirmSelection();
+        }
+      });
+
+      // リアルタイムバリデーション
+      function performRealtimeValidation() {
+        // 全てのピッカーが初期化されている場合のみ実行
+        if (
+          startHourPicker &&
+          startMinutePicker &&
+          endHourPicker &&
+          endMinutePicker
+        ) {
+          const validation = validateTimeRange();
+          if (!validation.isValid) {
+            // リアルタイムでは控えめにエラー表示（自動非表示なし）
+            const errorElement = document.getElementById("error-message");
+            const errorText = document.getElementById("error-text");
+
+            errorText.textContent = validation.message;
+            errorElement.classList.add("show");
+          } else {
+            hideError();
+          }
+        }
+      }
+
+      // テスト用: エラー状態を作る
+      function setErrorTestValues() {
+        document.getElementById("start-time").value = "17:00";
+        document.getElementById("end-time").value = "09:00";
+        updateDisplayValues();
+        location.reload();
+      }
+
+      // 初期表示更新
+      document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(updateDisplayValues, 100);
+      });
+    </script>
+  </body>
+</html>
